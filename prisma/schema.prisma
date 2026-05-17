@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String               @id @default(auto()) @map("_id") @db.ObjectId
+  email         String               @unique
+  username      String               @unique
+  passwordHash  String
+  role          UserRole?            @default(USER)
+  rank          String               @default("Rookie")
+  xp            Int                  @default(0)
+  isSponsor     Boolean              @default(false)
+  isPremium     Boolean              @default(false)
+  premiumUntil  DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  sessions      DuelSession[]
+  hostedMatches DuelMatch[]   @relation("DuelMatchHost")
+  joinedMatches DuelMatch[]   @relation("DuelMatchGuest")
+  communityMessages CommunityMessage[]
+  notifications UserNotification[]
+  billingEvents BillingEvent[]
+}
+
+model Category {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Question {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  category   String
+  difficulty String   @default("Medium")
+  question   String
+  choices    String[]
+  answer     Int
+  points     Int      @default(10)
+}
+
+model DuelSession {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  matchId   String?  @db.ObjectId
+  match     DuelMatch? @relation(fields: [matchId], references: [id])
+  category  String
+  difficulty String   @default("Medium")
+  mode      String   @default("SOLO")
+  score     Int
+  total     Int
+  xpEarned  Int
+  createdAt DateTime @default(now())
+}
+
+model DuelMatch {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  roomCode        String        @unique
+  matchMode       String        @default("PRIVATE")
+  category        String
+  difficulty      String
+  status          String        @default("WAITING")
+  hostUserId      String        @db.ObjectId
+  hostUser        User          @relation("DuelMatchHost", fields: [hostUserId], references: [id])
+  guestUserId     String?       @db.ObjectId
+  guestUser       User?         @relation("DuelMatchGuest", fields: [guestUserId], references: [id])
+  questionSnapshot Json
+  hostState       Json?
+  guestState      Json?
+  winnerUserId    String?       @db.ObjectId
+  winnerUsername  String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  sessions        DuelSession[]
+}
+
+model CommunityMessage {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  channel   String   @default("lobby")
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model UserNotification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  kind      String
+  title     String
+  body      String
+  href      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model BillingEvent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  plan        String
+  amount      Int
+  currency    String   @default("USD")
+  status      String   @default("COMPLETED")
+  providerRef String?
+  createdAt   DateTime @default(now())
+}
